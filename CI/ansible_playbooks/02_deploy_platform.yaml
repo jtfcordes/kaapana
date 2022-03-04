@@ -64,3 +64,15 @@
       environment:
         TERM: xterm
       script: "{{ install_script }} --quiet --username {{ registry_user }} --password {{ registry_pwd }}"
+      register: deploy_result
+
+    - name: stdout by running platform deployment script
+      debug: var=deploy_result.stdout_lines
+
+    - name: RESULT
+      debug:
+        msg: "PLATFORM DEPLOYED SUCCESSFULLY"
+
+    - name: RETURN
+      debug:
+        msg: "OK"
