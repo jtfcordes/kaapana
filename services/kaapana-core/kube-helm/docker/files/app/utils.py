@@ -187,7 +187,22 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     name = payload["name"]
     version = payload["version"]
 
-    default_sets = {
+    default_sets = {}
+    values = helm_show_values(name, version)
+    #if 'global' in values:
+    #    for key, value in values['global'].items():
+    #        if value != '':
+    #            default_sets.update({f'global.{key}': value})
+    if 'global' in values:
+        def traverse_values(parent_path, obj):
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    traverse_values(f"{parent_path}.{key}", value)
+            elif obj != '':
+                default_sets.update({f'{parent_path}': obj})
+        traverse_values('global', values['global'])
+
+    default_sets.update({
         'global.registry_url': os.getenv('REGISTRY_URL'),
         'global.base_namespace': os.getenv('BASE_NAMESPACE'),
         'global.flow_namespace': os.getenv('FLOW_NAMESPACE'),
@@ -197,7 +212,7 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
         'global.pull_policy_pods': os.getenv('PULL_POLICY_PODS'),
         'global.pull_policy_jobs': os.getenv('PULL_POLICY_JOBS'),
         'global.offline_mode': os.environ.get('OFFLINE_MODE', 'true')
-    }
+    })
 
     http_proxy = os.getenv('PROXY', None)
     if http_proxy is not None and http_proxy != "":
@@ -216,10 +231,6 @@ def helm_install(payload, namespace, helm_command_addons='', helm_comman_suffix=
     else:
         keywords = payload['keywords']
 
-    if 'global' in values:
-        for key, value in values['global'].items():
-            if value != '':
-                default_sets.update({f'global.{key}': value})
 
     if 'sets' not in payload:
         payload['sets'] = default_sets
