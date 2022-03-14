@@ -26,7 +26,7 @@ spec:
       containers:
         - name: traefik
           image: {{  .Values.global.registry_url }}/traefik:v2.3
-
+          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
             - name: web
               containerPort: 80
@@ -40,8 +40,8 @@ spec:
             - '--providers.file.filename=/config/conf.toml'
             - '--providers.file.watch=true'
             - '--entrypoints.web.address=:80'
-            - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
-            - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
+            # - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
+            # - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
             - '--entrypoints.websecure.address=:443'
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
@@ -51,7 +51,6 @@ spec:
             - '--api.insecure=true'
             - '--api.debug=false'
             - '--log.level=WARN'
-            - '--log.filePath=/log/traefik.log'
             - '--accesslog=true'
             - '--accesslog.filepath=/log/access.log'
             - '--log.format=json'

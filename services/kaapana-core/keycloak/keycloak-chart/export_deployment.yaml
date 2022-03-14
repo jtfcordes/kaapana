@@ -16,8 +16,8 @@ spec:
     spec:
       initContainers:
       - name: init
-        image: dktk-jip-registry.dkfz.de/kaapana/service_checker:1.1
-        imagePullPolicy: {{ .Values.global.pull_policy_pods }}
+        image: <registry>/service_checker:1.1
+        imagePullPolicy:  Always
         env:
           - name: WAIT
             value: "postgres,postgres-keycloak-service.kube-system.svc,5432"
@@ -25,22 +25,14 @@ spec:
             value: "2"
           - name: TIMEOUT
             value: "10"
-      - name: volume-permissions
-        image: dktk-jip-registry.dkfz.de/kaapana/busybox:1.31
-        command: ["sh", "-c", "chmod -R 777 /tmp"]
-        volumeMounts:
-        - mountPath: /tmp
-          name: export
       containers: 
         - name: keycloak-container
-          image: dktk-jip-registry.dkfz.de/kaapana/keycloak:11.0.2
-          imagePullPolicy: {{ .Values.global.pull_policy_pods }}
-          # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=export", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/export" ]
-          # args: ["-b","0.0.0.0","-c", "standalone-ha.xml", "-Dkeycloak.migration.action=import", "-Dkeycloak.migration.provider=dir","-Dkeycloak.migration.dir=/opt/jboss/keycloak/standalone/configuration/import","-Dkeycloak.migration.strategy=IGNORE_EXISTING"]
+          image: <registry>/keycloak:16.1.1
+          imagePullPolicy:  Always
           args: ["-Djboss.socket.binding.port-offset=100","-Dkeycloak.migration.action=export","-Dkeycloak.migration.provider=singleFile","-Dkeycloak.migration.realmName=kaapana","-Dkeycloak.migration.usersExportStrategy=REALM_FILE","-Dkeycloak.migration.file=/tmp/kaapana.json"]
           env:
-          - name: KEYCLOAK_IMPORT
-            value: /import/kaapana-realm.json
+          # - name: KEYCLOAK_IMPORT
+          #   value: /import/kaapana-realm.json
           - name: KEYCLOAK_USER
             value: admin
           - name: KEYCLOAK_PASSWORD
