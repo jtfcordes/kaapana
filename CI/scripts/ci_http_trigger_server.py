@@ -71,11 +71,11 @@ class S(BaseHTTPRequestHandler):
                     return
 
                 if "bugfix" == path_parts[-2] or "hotfix" == path_parts[-2] or "feature" == path_parts[-2]:
-                    branch = path_parts[-2]+"/"+path_parts[-1]
+                    branches = path_parts[-2]+"/"+path_parts[-1]
                 else:
-                    branch = path_parts[-1]
+                    branches = path_parts[-1].split(",")
 
-                print("branch: {}".format(branch))
+                print("branch/es: {}".format(branches))
 
                 ci_paras = []
                 if "delete-instances" in parameters:
@@ -156,89 +156,94 @@ class S(BaseHTTPRequestHandler):
                 all_branches = repo.git.branch('-a').split("\n")
                 all_branches = [h.replace(
                     "*", " ").split("  ")[1].replace("remotes/origin/", "") for h in all_branches]
+                all_tags = sorted(repo.tags, key=lambda t: t.commit.committed_datetime)
 
-                if not any(branch == c for c in all_branches):
-                    repo.remote().fetch()
-                    all_branches = repo.git.branch('-a').split("\n")
-                    all_branches = [h.replace("*", " ").split("  ")[1].replace("remotes/origin/", "") for h in all_branches]
+                dont_run_ci = False
 
-                if any(branch == c for c in all_branches):
-                    print("starting ci for: {}".format(branch))
+                for branch in branches:
+                    if not any(branch == c for c in all_branches):
+                        repo.remote().fetch()
+                        all_branches = repo.git.branch('-a').split("\n")
+                        all_branches = [h.replace("*", " ").split("  ")[1].replace("remotes/origin/", "") for h in all_branches]
+
+                    if not any(branch == c for c in all_branches) and not any(branch == c.name for c in all_tags):
+                        self.wfile.write("""
+                        <html>
+                        <head>
+                            <title>Kaapana CI</title>
+                        </head>
+                        <body>
+                            <TABLE ALIGN=CENTER WIDTH=60%>
+                                <TR>
+                                    <TD>
+                                    <FONT SIZE=6>
+                                        <H1 ALIGN=CENTER >
+                                            <FONT FACE="COMIC SANS, COMIC RELIEF, PAPYRUS, CURSIVE">
+                                                <BLINK>
+                                                <MARQUEE BEHAVIOR=ALTERNATE><B>Kaapana CI!</B></MARQUEE>
+                                                </BLINK>
+                                            </FONT>
+                                        </H1>
+                                    </FONT>
+                                    </TD>
+                                </TR>
+                            </TABLE>
+                            <TABLE WIDTH=100% BGCOLOR=CORNSILK>
+                                <TR>
+                                    <TD>
+                                    <TABLE>
+                                        <TR>
+                                            <TD VALIGN=TOP>
+                                                <div>
+                                                <h1><strong>Branch {} not found!</strong></h1>
+                                                <br />
+                                                <h2>Usage:</h2>
+                                                <h2>/cikaapana/&lt;branch_1,branch_2,...branch_n&gt;?para1&amp;para2</h2>
+                                                <br />
+                                                <div><strong>where para could be:</strong></div>
+                                                <br />
+                                                <div>&nbsp; &nbsp; delete-instances&nbsp; &nbsp; &nbsp; &nbsp; -&gt; delete OpenStack ci deployment instances first if available</div>
+                                                <div>&nbsp; &nbsp; os-usr&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; OpenStack CI user "os-usr=&ltos-ci-user&gt"</div>
+                                                <div>&nbsp; &nbsp; os-pwd&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; OpenStack CI password "os-pwd=&ltos-ci-password/token&gt"</div>
+                                                <div>&nbsp; &nbsp; reg-url&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; container registry url "reg-url=&lturl_link&gt"</div>
+                                                <div>&nbsp; &nbsp; reg-usr&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; container registry user "reg-usr=&ltreg_user&gt"</div>
+                                                <div>&nbsp; &nbsp; reg-pwd&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; enter container registry token/password "reg-pwd=&ltreg-password/token&gt"</div>
+                                                <div>&nbsp; &nbsp; launch-name&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; CI job launch name, appears on CI dashboard</div>
+                                                <div>&nbsp; &nbsp; build-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; check, build and push Helm charts Docker containers only</div>
+                                                <div>&nbsp; &nbsp; charts-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; check, build and push Helm charts only</div>
+                                                <div>&nbsp; &nbsp; docker-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; check, build and push Docker containers only</div>
+                                                <div>&nbsp; &nbsp; deploy-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; platform deployment tests only</div>
+                                                <div>&nbsp; &nbsp; disable-report&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; disable reporting on CI dashboard</div>
+                                                <div>&nbsp; &nbsp; email-notifications&nbsp; &nbsp; -&gt; enable email-notifications for errors</div>
+                                                <br />
+                                                <div><strong>example:</strong></div>
+                                                <div><em>/cikaapana/develop,0.1.2-september?delete-instances&amp;build-only&amp;email-notifications</em></div>
+                                                <br />
+                                                <h2>To terminate a running ci run: /cikaapana/terminate</h2>
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    </TABLE>
+                                    </TD>
+                                </TR>
+                            </TABLE>
+                        </body>
+                        </html>
+
+                        """.format(branch).encode('utf-8'))
+                        dont_run_ci = True
+
+                if not dont_run_ci:
+                    print("starting ci for: {}".format(branches))
                     self.wfile.write("Triggered!".encode('utf-8'))
 
-                    ci_paras.append("--branch")
-                    ci_paras.append("{}".format(branch))
+                    ci_paras.append("--branch/es")
+                    ci_paras.append("{}".format(branches))
                     ci_paras.append("--disable-safe-mode")
                     start_ci_pipeline_file = os.path.join(ci_dir, "CI", "scripts", "start_ci_pipeline.py")
                     my_env = os.environ.copy()
                     my_env["PATH"] = "/home/ubuntu/.local/bin:/usr/bin:/bin:/snap/bin:/usr/local/bin:" + my_env["PATH"]
                     p = subprocess.Popen(["/usr/bin/python3", start_ci_pipeline_file, *ci_paras], env=my_env)
-
-                else:
-                    self.wfile.write("""
-                    <html>
-                    <head>
-                        <title>Kaapana CI</title>
-                    </head>
-                    <body>
-                        <TABLE ALIGN=CENTER WIDTH=60%>
-                            <TR>
-                                <TD>
-                                <FONT SIZE=6>
-                                    <H1 ALIGN=CENTER >
-                                        <FONT FACE="COMIC SANS, COMIC RELIEF, PAPYRUS, CURSIVE">
-                                            <BLINK>
-                                            <MARQUEE BEHAVIOR=ALTERNATE><B>Kaapana CI!</B></MARQUEE>
-                                            </BLINK>
-                                        </FONT>
-                                    </H1>
-                                </FONT>
-                                </TD>
-                            </TR>
-                        </TABLE>
-                        <TABLE WIDTH=100% BGCOLOR=CORNSILK>
-                            <TR>
-                                <TD>
-                                <TABLE>
-                                    <TR>
-                                        <TD VALIGN=TOP>
-                                            <div>
-                                            <h1><strong>Branch {} not found!</strong></h1>
-                                            <br />
-                                            <h2>Usage:</h2>
-                                            <h2>/cikaapana/&lt;branch&gt;?para1&amp;para2</h2>
-                                            <br />
-                                            <div><strong>where para could be:</strong></div>
-                                            <br />
-                                            <div>&nbsp; &nbsp; delete-instances&nbsp; &nbsp; &nbsp; &nbsp; -&gt; delete OpenStack ci deployment instances first if available</div>
-                                            <div>&nbsp; &nbsp; os-usr&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; OpenStack CI user "os-usr=&ltos-ci-user&gt"</div>
-                                            <div>&nbsp; &nbsp; os-pwd&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; OpenStack CI password "os-pwd=&ltos-ci-password/token&gt"</div>
-                                            <div>&nbsp; &nbsp; reg-url&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; container registry url "reg-url=&lturl_link&gt"</div>
-                                            <div>&nbsp; &nbsp; reg-usr&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; container registry user "reg-usr=&ltreg_user&gt"</div>
-                                            <div>&nbsp; &nbsp; reg-pwd&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; enter container registry token/password "reg-pwd=&ltreg-password/token&gt"</div>
-                                            <div>&nbsp; &nbsp; launch-name&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; CI job launch name, appears on CI dashboard</div>
-                                            <div>&nbsp; &nbsp; build-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; check, build and push Helm charts Docker containers only</div>
-                                            <div>&nbsp; &nbsp; charts-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; check, build and push Helm charts only</div>
-                                            <div>&nbsp; &nbsp; docker-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; check, build and push Docker containers only</div>
-                                            <div>&nbsp; &nbsp; deploy-only&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; platform deployment tests only</div>
-                                            <div>&nbsp; &nbsp; disable-report&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -&gt; disable reporting on CI dashboard</div>
-                                            <div>&nbsp; &nbsp; email-notifications&nbsp; &nbsp; -&gt; enable email-notifications for errors</div>
-                                            <br />
-                                            <div><strong>example:</strong></div>
-                                            <div><em>/cikaapana/develop?delete-instances&amp;build-only&amp;email-notifications</em></div>
-                                            <br />
-                                            <h2>To terminate a running ci run: /cikaapana/terminate</h2>
-                                            </div>
-                                        </TD>
-                                    </TR>
-                                </TABLE>
-                                </TD>
-                            </TR>
-                        </TABLE>
-                    </body>
-                    </html>
-
-                    """.format(branch).encode('utf-8'))
 
         else:
             self.wfile.write("Nothing to do...".encode('utf-8'))

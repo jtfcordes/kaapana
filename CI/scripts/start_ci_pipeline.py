@@ -826,7 +826,7 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument("-in", "--inst-name", dest="instance_name", default="ci-nightly-depl-test", help="Name for the CI deployment instance")
     parser.add_argument("-ln", "--launch-name", dest="launch_name", default="CI Test Run", help="Name for the lauch on ReportPortal")
-    parser.add_argument("-b", "--branch", dest="branch", default=None, help="Branch to run the CI on. !!CAUTION: will reset the git repo to last commit!")
+    parser.add_argument("-b", "--branch/es", dest="branches", default=None, help="Branch/es to run the CI on. !!CAUTION: will reset the git repo to last commit!")
     parser.add_argument("-dsm", "--disable-safe-mode", dest="disable_safe_mode", default=False, action='store_true',help="Disable safe-mode")
     parser.add_argument("-u", "--username", dest="username", default="kaapana-ci", help="Openstack Username")
     parser.add_argument("-p", "--password", dest="password", default=None, required=False, help="Openstack Password")
@@ -844,7 +844,7 @@ if __name__ == '__main__':
     parser.add_argument("-allp", "--all-platforms", dest="all_platforms", default=False, action='store_true', help="Test all platforms")
 
     args = parser.parse_args()
-    branch = args.branch 
+    branches = args.branches
     disable_safe_mode = args.disable_safe_mode
     delete_instances = args.delete_instances
     username = args.username if args.username is not None else username
@@ -879,28 +879,53 @@ if __name__ == '__main__':
     print()
     print("++++++++++++++++++++++++++++++++++++++++++++++++++")
 
-    if branch is not None:
-        print("Switching to git branch: {}".format(branch))
-        if not disable_safe_mode:
-            reply = str(input("This will reset the repo to the last commit of {} (y/n): ".format(branch))).lower().strip()
-            if reply[0] == 'y':
-                print("continuing...")
+    num_branch = 2
+    if branches is not None:
+        branches = ast.literal_eval(branches)
+        for branch in branches:
+            if num_branch > 1:
+                print("Starting with next branch in line: {}".format(branch))
+                print("But, first clearning docker cache...")
+                command = ['docker', 'system', 'prune', '-f', '-a', '--volumes']
+                output = run(command, stdout=PIPE, stderr=PIPE, universal_newlines=True, timeout=6000)
+
+            print("Switching to git branch/release: {}".format(branch))
+            if not disable_safe_mode:
+                reply = str(input("This will reset the repo to the last commit of {} (y/n): ".format(branch))).lower().strip()
+                if reply[0] == 'y':
+                    print("continuing...")
+                else:
+                    print("goodbye")
+                    exit(0)
+
+            repo.git.reset('--hard')
+            repo.git.clean('-xdf')
+            repo.git.checkout(branch)
+            ## Check if branch is not a release one
+            if not re.match("\d{1,3}\.\d{1,3}\.\d{1,3}", branch):
+                repo.remote().pull(branch)
+                branch_name = repo.active_branch.name
             else:
-                print("goodbye")
-                exit(0)
-
-        repo.git.reset('--hard')
-        repo.git.clean('-xdf')
-        repo.git.checkout(branch)
-        repo.remote().pull(branch)
-
-    branch_name = repo.active_branch.name
+                branch_name = branch
     
-    ## TODO: following is just for debugging CI, needs to be removed
-    lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
-    if os.path.isfile(lock_file):
-        print("Lock file present! Now deleting it before proceeding...")
-        os.remove(lock_file)
+            ## TODO: following is just for debugging CI, needs to be removed
+            lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
+            if os.path.isfile(lock_file):
+                print("Lock file present! Now deleting it before proceeding...")
+                os.remove(lock_file)
 
-    launch()
+            launch()
+            num_branch += 1
+    else:
+        branch_name = repo.active_branch.name
+    
+        ## TODO: following is just for debugging CI, needs to be removed
+        lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
+        if os.path.isfile(lock_file):
+            print("Lock file present! Now deleting it before proceeding...")
+            os.remove(lock_file)
+
+        launch()
+
