@@ -17,6 +17,10 @@ from git import Repo
 import datetime
 import signal
 import importlib
+import re
+import ast
+from subprocess import PIPE, run
+from copy import deepcopy
 
 kaapana_ci_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 exceptions_file = os.path.join(kaapana_ci_dir, "CI", "scripts", "ci_exceptions.json")
@@ -106,7 +110,7 @@ def terminate_session(result_code, ci_status="PASSED"):
     global lock_file, rp_service, suites
 
     if ci_status == "FAILED" and email_notifications:
-        error_handler.ci_failure_notification(message="Failure in CI Deployment tests")
+        error_handler.ci_failure_notification(message=f"Failure in CI Deployment tests", branch_name=branch_name)
     
     for suite_name, suite_dict in suites.items():
         if suite_dict["running"] and suite_name != "launch":
@@ -141,7 +145,8 @@ def terminate_session(result_code, ci_status="PASSED"):
     except Exception as e:
         pass
 
-    exit(result_code)
+    if not branch_list:
+        exit(result_code)
 
 
 def handle_logs(log_dict):
@@ -213,7 +218,7 @@ def handle_logs(log_dict):
 
     if loglevel is not None and loglevel == "error" and email_notifications and mail_counter <= mail_max and rel_file is not None and rel_file != "":
         print("################################################ -> SENDING EMAIL No {}".format(mail_counter))
-        error_handler.notify_maintainers(logs_dict=log_dict)
+        error_handler.notify_maintainers(logs_dict=log_dict, branch_name=branch_name)
         mail_counter += mail_counter
 
     if suite_dict is not None and loglevel == "error":
@@ -696,7 +701,7 @@ def launch():
     try:
         if not dpl_only:
             if log_level not in supported_log_levels:
-                print("Log level {} not supported.")
+                print(f"Log level {log_level} not supported.")
                 print("Please use 'DEBUG','WARN' or 'ERROR' for log_level")
                 exit(1)
 
@@ -723,7 +728,7 @@ def launch():
             handle_logs(log)
             
             startup_sequence("centos7", suite_name)
-            startup_sequence("centos8", suite_name)
+            # startup_sequence("centos8", suite_name)
             startup_sequence("ubuntu", suite_name)
 
             log = {
@@ -785,7 +790,7 @@ def launch():
         print(error_message)
         print(traceback.format_exc())
         if email_notifications:
-            error_handler.ci_failure_notification(message=error_message)
+            error_handler.ci_failure_notification(message=error_message, branch_name=branch_name)
 
     finally:
         print("Terminating...")
@@ -879,11 +884,13 @@ if __name__ == '__main__':
     print()
     print("++++++++++++++++++++++++++++++++++++++++++++++++++")
 
-    num_branch = 2
+    branch_count = 1
     if branches is not None:
         branches = ast.literal_eval(branches)
+        branch_list = deepcopy(branches)
         for branch in branches:
-            if num_branch > 1:
+            log_level = "WARN"
+            if branch_count > 1:
                 print("Starting with next branch in line: {}".format(branch))
                 print("But, first clearning docker cache...")
                 command = ['docker', 'system', 'prune', '-f', '-a', '--volumes']
@@ -909,23 +916,23 @@ if __name__ == '__main__':
                 branch_name = branch
     
             ## TODO: following is just for debugging CI, needs to be removed
-            lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-                os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
-            if os.path.isfile(lock_file):
-                print("Lock file present! Now deleting it before proceeding...")
-                os.remove(lock_file)
-
+            # lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            #     os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
+            # if os.path.isfile(lock_file):
+            #     print("Lock file present! Now deleting it before proceeding...")
+            #     os.remove(lock_file)
+            branch_list.remove(branch) # remove branch which is done processing from list
             launch()
-            num_branch += 1
+            branch_count += 1
     else:
         branch_name = repo.active_branch.name
     
-        ## TODO: following is just for debugging CI, needs to be removed
-        lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
-        if os.path.isfile(lock_file):
-            print("Lock file present! Now deleting it before proceeding...")
-            os.remove(lock_file)
+        # ## TODO: following is just for debugging CI, needs to be removed
+        # lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        #     os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
+        # if os.path.isfile(lock_file):
+        #     print("Lock file present! Now deleting it before proceeding...")
+        #     os.remove(lock_file)
 
         launch()
 

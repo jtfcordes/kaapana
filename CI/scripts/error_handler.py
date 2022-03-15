@@ -13,7 +13,7 @@ kaapana_dir = '/home/ubuntu/kaapana'
 g = git.Git(kaapana_dir)
 
 
-def send_email(mail_address, message, logs_dict={}):
+def send_email(mail_address, message, branch_name, logs_dict={}):
     print("++++++++++++++++++++++++++++++++++++++++++++++++++++")
     print("SENDING EMAIL: {}".format(mail_address))
     print("MESSAGE: {}".format(message))
@@ -21,7 +21,7 @@ def send_email(mail_address, message, logs_dict={}):
     from_address = "CI@kaapana.dkfz"
     sending_ts = datetime.now()
 
-    sub = 'Kaapana CI report'
+    sub = f'Kaapana CI report for branch {branch_name}'
     
     msgRoot = MIMEMultipart('related')
     msgRoot['From'] = from_address
@@ -47,7 +47,7 @@ def send_email(mail_address, message, logs_dict={}):
     return 0
 
 
-def notify_maintainers(logs_dict):
+def notify_maintainers(logs_dict, branch_name):
     print("notify_maintainers: ")    
     if "container" in logs_dict:
         del logs_dict["container"]
@@ -114,7 +114,7 @@ def blame_last_edit(logs_dict):
     return {"{} {}".format(firstname, lastname): email_address}
 
 
-def ci_failure_notification(message="", logs_dict={}):
+def ci_failure_notification(message="", branch_name="", logs_dict={}):
     print("CI failure notification to Kaapana team members: ")
     maintainer_email = "kaapana-team@dkfz-heidelberg.de"
     message = """
@@ -137,7 +137,7 @@ def ci_failure_notification(message="", logs_dict={}):
         </html>
         """.format(message)
 
-    send_email(mail_address=maintainer_email, message=message, logs_dict=logs_dict)
+    send_email(mail_address=maintainer_email, message=message, branch_name=branch_name, logs_dict=logs_dict)
 
 
 def last_commit_author():
