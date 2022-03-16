@@ -751,12 +751,12 @@ def launch():
                 elif key == "ubuntu":
                     ubuntu_host_ips.append(val["ip"])
                 else:
-                    print("Skipping host with currently unsupported Operating System -> {}")
+                    print(f"Skipping host with currently unsupported Operating System -> {key}")
 
             if len(centos_host_ips) == 0 and len(ubuntu_host_ips) == 0:
                 print("No HOSTS found, terminating...")
                 terminate_session(1,ci_status="FAILED")
-                exit(1)
+                return
             else:
                 if len(centos_host_ips) > 0:
                     centos_result = install_dependencies(target_hosts=centos_host_ips, os_image="centos")
@@ -772,7 +772,7 @@ def launch():
             if centos_result == "FAILED" and ubuntu_result == "FAILED":
                 print("Deployment and test for all supported Operating Systems failed, terminating...")
                 terminate_session(1,ci_status="FAILED")
-                exit(1)
+                return
 
             for key, val in ci_servers.items():
                 log = {
@@ -927,7 +927,7 @@ if __name__ == '__main__':
     else:
         branch_name = repo.active_branch.name
     
-        # ## TODO: following is just for debugging CI, needs to be removed
+        ## TODO: following is just for debugging CI, needs to be removed
         # lock_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
         #     os.path.dirname(os.path.abspath(__file__))))), "ci_running.txt")
         # if os.path.isfile(lock_file):
