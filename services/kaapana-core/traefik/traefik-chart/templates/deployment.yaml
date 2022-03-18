@@ -1,15 +1,15 @@
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: traefik-ingress-controller
   namespace: kube-system
-
+  name: traefik-ingress-controller
 ---
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: traefik
   namespace: kube-system
+  name: traefik
   labels:
     app: traefik
 spec:
@@ -25,6 +25,7 @@ spec:
       serviceAccountName: traefik-ingress-controller
       containers:
         - name: traefik
+<<<<<<< HEAD
           image: {{  .Values.global.registry_url }}/traefik:v2.3
           imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
           ports:
@@ -34,15 +35,27 @@ spec:
               containerPort: 443
             - name: admin
               containerPort: 8080
+=======
+          image: {{  .Values.global.registry_url }}/traefik:v2.6
+>>>>>>> develop
           args:
-            - '--providers.kubernetesingress=true'
-            - '--providers.kubernetescrd=true'
+            - '--api.insecure'
+            - '--accesslog'
+            - '--providers.kubernetesingress'
+            - '--providers.kubernetescrd'
             - '--providers.file.filename=/config/conf.toml'
             - '--providers.file.watch=true'
+<<<<<<< HEAD
             - '--entrypoints.web.address=:80'
             # - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
             # - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
             - '--entrypoints.websecure.address=:443'
+=======
+            - '--entrypoints.web.address=:8000'
+            - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
+            - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
+            - '--entrypoints.websecure.address=:4443'
+>>>>>>> develop
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
             # - '--serversTransport.insecureSkipVerify=true'
@@ -56,6 +69,13 @@ spec:
             - '--log.format=json'
             - '--metrics=true'
             - '--metrics.prometheus=true'
+          ports:
+            - name: web
+              containerPort: 8000
+            - name: websecure
+              containerPort: 4443
+            - name: admin
+              containerPort: 8080
           resources:
             requests:
               memory: 100Mi
@@ -69,15 +89,9 @@ spec:
               name: traefiklog
             - mountPath: /ssl
               name: ssl
-        #   livenessProbe:
-        #     tcpSocket:
-        #       port: 443
-        #     initialDelaySeconds: 15
-        #     periodSeconds: 120
       volumes:
         - name: traefiklog
           hostPath:
-            # path: /home/kaapana/traefik
             path: {{ .Values.global.fast_data_dir }}/traefik
             type: DirectoryOrCreate
         - name: traefik-config-file
@@ -90,5 +104,5 @@ spec:
           secret:
             secretName: certificate
       imagePullSecrets:
-        - name: registry-secret
+      - name: registry-secret
 ---
