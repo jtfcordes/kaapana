@@ -25,19 +25,7 @@ spec:
       serviceAccountName: traefik-ingress-controller
       containers:
         - name: traefik
-<<<<<<< HEAD
-          image: {{  .Values.global.registry_url }}/traefik:v2.3
-          imagePullPolicy:  {{ .Values.global.pull_policy_pods }}
-          ports:
-            - name: web
-              containerPort: 80
-            - name: websecure
-              containerPort: 443
-            - name: admin
-              containerPort: 8080
-=======
           image: {{  .Values.global.registry_url }}/traefik:v2.6
->>>>>>> develop
           args:
             - '--api.insecure'
             - '--accesslog'
@@ -45,17 +33,10 @@ spec:
             - '--providers.kubernetescrd'
             - '--providers.file.filename=/config/conf.toml'
             - '--providers.file.watch=true'
-<<<<<<< HEAD
-            - '--entrypoints.web.address=:80'
-            # - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
-            # - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
-            - '--entrypoints.websecure.address=:443'
-=======
             - '--entrypoints.web.address=:8000'
             - '--entrypoints.web.http.redirections.entryPoint.to=websecure'
             - '--entrypoints.web.http.redirections.entryPoint.scheme=https'
             - '--entrypoints.websecure.address=:4443'
->>>>>>> develop
             - '--entryPoints.websecure.http.tls=true'
             - '--entrypoints.dicom.Address=:11112'
             # - '--serversTransport.insecureSkipVerify=true'
