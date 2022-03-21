@@ -435,18 +435,20 @@ def build_and_push_charts():
                     
 
             if "platforms" in chart.chart_dir and not chart.local_only:
-                print("saving chart ...")
-                for log_entry in chart.chart_save():
+                print("creating chart package ...")
+                for log_entry in chart.package():
                     yield log_entry
                     if log_entry['loglevel'].upper() == "ERROR":
-                        raise SkipException("SKIP {}: chart_save() error!".format(log_entry['test']), log=log_entry)
-                    
-
-                print("pushing chart ...")
-                for log_entry in chart.chart_push():
-                    yield log_entry
-                    if log_entry['loglevel'].upper() == "ERROR":
-                        raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
+                        raise SkipException("SKIP {}: package() error!".format(log_entry['test']), log=log_entry)
+                    else:
+                        packages = glob(os.path.join(os.path.dirname(chart.chart_dir), '*.tgz'))
+                        for package in packages:
+                            print("pushing chart ...")
+                            for log_entry in chart.chart_push():
+                                yield log_entry
+                                if log_entry['loglevel'].upper() == "ERROR":
+                                    raise SkipException("SKIP {}: chart_push() error!".format(log_entry['test']), log=log_entry)
+                            os.remove(package)
                         
 
             print()
