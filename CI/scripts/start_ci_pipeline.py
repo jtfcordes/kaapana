@@ -21,6 +21,7 @@ import re
 import ast
 from subprocess import PIPE, run
 from copy import deepcopy
+from glob import glob
 
 kaapana_ci_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 exceptions_file = os.path.join(kaapana_ci_dir, "CI", "scripts", "ci_exceptions.json")
