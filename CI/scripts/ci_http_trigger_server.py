@@ -237,7 +237,7 @@ class S(BaseHTTPRequestHandler):
                     print("starting ci for: {}".format(branches))
                     self.wfile.write("Triggered!".encode('utf-8'))
 
-                    ci_paras.append("--branch/es")
+                    ci_paras.append("--branch-es")
                     ci_paras.append("{}".format(branches))
                     ci_paras.append("--disable-safe-mode")
                     start_ci_pipeline_file = os.path.join(ci_dir, "CI", "scripts", "start_ci_pipeline.py")
